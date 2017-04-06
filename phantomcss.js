@@ -235,23 +235,35 @@ function _isFile( path ) {
 	return exists;
 }
 
-function screenshot( target, timeToWait, hideSelector, fileName ) {
-	var name;
-
-	if ( isComponentsConfig( target ) ) {
-		for ( name in target ) {
-			if ( isComponentsConfig( target[ name ] ) ) {
-				waitAndHideToCapture( target[ name ].selector, name, target[ name ].ignore, target[ name ].wait );
-			} else {
-				waitAndHideToCapture( target[ name ], name );
-			}
+function screenshotComponents( components, keys, currentIndex, timeToWait, hideSelector, fileName, callback ) {
+  if (currentIndex < keys.length) {
+    var name = keys[currentIndex];
+    var target = components[name];
+    
+    var next = screenshotComponents.bind(this, components, keys, currentIndex + 1, timeToWait, hideSelector, fileName, callback );
+    
+    if ( isComponentsConfig( target) ) {
+      waitAndHideToCapture( target.selector, name, target.ignore, target.wait, next );
+    } else {
+      waitAndHideToCapture( target, name, hideSelector, timeToWait, next );
+    }
+	} else {
+  	if (callback) {
+  		callback();
 		}
+	}
+	
+}
+
+function screenshot( target, timeToWait, hideSelector, fileName, callback ) {
+	if ( isComponentsConfig( target ) ) {
+		screenshotComponents(target, Object.keys(target), 0, timeToWait, hideSelector, fileName, callback);
 	} else {
 		if ( isNaN( Number( timeToWait ) ) && ( typeof timeToWait === 'string' ) ) {
 			fileName = timeToWait;
 			timeToWait = void 0;
 		}
-		waitAndHideToCapture( target, fileName, hideSelector, timeToWait );
+		waitAndHideToCapture( target, fileName, hideSelector, timeToWait, callback );
 	}
 }
 
@@ -685,7 +697,7 @@ function _onComplete( tests, noOfFails, noOfErrors ) {
 	}
 }
 
-function waitAndHideToCapture( target, fileName, hideSelector, timeToWait ) {
+function waitAndHideToCapture( target, fileName, hideSelector, timeToWait, callback ) {
 	var srcPath = _fileNameGetter( _src, fileName );
 	var resultPath = srcPath.replace( _src, _results );
 
@@ -698,6 +710,10 @@ function waitAndHideToCapture( target, fileName, hideSelector, timeToWait ) {
 		}
 
 		capture( srcPath, resultPath, target );
+		
+		if (callback) {
+			callback();
+		}
 	}
 	if(_captureWaitEnabled) {
 		casper.wait(timeToWait || 250, runCapture); // give a bit of time for all the images appear
